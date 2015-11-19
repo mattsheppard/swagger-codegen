@@ -5,12 +5,19 @@ import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.config.ClientConfig;
 import com.sun.jersey.api.client.config.DefaultClientConfig;
 import com.sun.jersey.api.client.filter.LoggingFilter;
+import com.sun.jersey.client.urlconnection.HTTPSProperties;
 import com.sun.jersey.api.client.WebResource.Builder;
 
 import com.sun.jersey.multipart.FormDataMultiPart;
 import com.sun.jersey.multipart.file.FileDataBodyPart;
 
 import javax.ws.rs.core.Response.Status.Family;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.ws.rs.core.MediaType;
 
 import java.util.Collection;
@@ -24,7 +31,9 @@ import java.util.Date;
 import java.util.TimeZone;
 
 import java.net.URLEncoder;
-
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.io.IOException;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
@@ -44,6 +53,7 @@ public class ApiClient {
   private Map<String, Client> hostMap = new HashMap<String, Client>();
   private Map<String, String> defaultHeaderMap = new HashMap<String, String>();
   private boolean debugging = false;
+  private boolean sslValidation = true;
   private String basePath = "{{basePath}}";
   private JSON json = new JSON();
 
@@ -221,6 +231,23 @@ public class ApiClient {
    */
   public ApiClient setDebugging(boolean debugging) {
     this.debugging = debugging;
+    return this;
+  }
+
+  /**
+   * Check that whether SSL Validation is enabled for this API client.
+   */
+  public boolean isValidatingSSL() {
+    return sslValidation;
+  }
+
+  /**
+   * Enable/disable SSL Validation for this API client.
+   *
+   * @param validate To enable (true) or disable (false) SSL Validation
+   */
+  public ApiClient setSSLValidation(boolean validate) {
+    this.sslValidation = validate;
     return this;
   }
 
@@ -663,16 +690,65 @@ public class ApiClient {
     return encodedFormParams;
   }
 
+  public static ClientConfig configureClientToIgnoeSSLValidation() {
+      TrustManager[ ] certs = new TrustManager[ ] {
+              new X509TrustManager() {
+
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                    // Perform no check
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                    // Perform no check
+                }
+
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+              }
+      };
+      SSLContext ctx = null;
+      try {
+          ctx = SSLContext.getInstance("TLS");
+          ctx.init(null, certs, new SecureRandom());
+      } catch (java.security.GeneralSecurityException ex) {
+      }
+      HttpsURLConnection.setDefaultSSLSocketFactory(ctx.getSocketFactory());
+      
+      ClientConfig config = new DefaultClientConfig();
+      try {
+          config.getProperties().put(HTTPSProperties.PROPERTY_HTTPS_PROPERTIES, new HTTPSProperties(
+              new HostnameVerifier() {
+                  @Override
+                  public boolean verify(String hostname, SSLSession session) {
+                      return true;
+                  }
+              }, 
+              ctx
+          ));
+      } catch(Exception e) {
+      }
+      return config;
+  }
+  
   /**
    * Get an existing client or create a new client to handle HTTP request.
    */
   private Client getClient() {
     if(!hostMap.containsKey(basePath)) {
-      Client client = Client.create();
+        
+      Client client;
+      if (sslValidation) {
+          client = Client.create();
+      } else {
+          client = Client.create(configureClientToIgnoeSSLValidation());
+      }
       if (debugging)
         client.addFilter(new LoggingFilter());
       hostMap.put(basePath, client);
     }
     return hostMap.get(basePath);
-  }
-}
+  }}
