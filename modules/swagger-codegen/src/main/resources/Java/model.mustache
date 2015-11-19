@@ -7,6 +7,10 @@ import {{invokerPackage}}.StringUtil;
 {{#serializableModel}}
 import java.io.Serializable;{{/serializableModel}}
 
+import lombok.Builder;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+
 import io.swagger.annotations.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 {{#models}}
@@ -17,12 +21,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  **/{{/description}}
 @ApiModel(description = "{{{description}}}")
 {{>generatedAnnotation}}
+@Builder
+@Accessors(chain = true)
 public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#serializableModel}}implements Serializable{{/serializableModel}} {
   {{#vars}}{{#isEnum}}
 
 {{>enumClass}}{{/isEnum}}{{#items.isEnum}}{{#items}}
 
 {{>enumClass}}{{/items}}{{/items.isEnum}}
+  @Setter
   private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};{{/vars}}
 
   {{#vars}}
@@ -36,9 +43,9 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#seriali
   public {{{datatypeWithEnum}}} {{getter}}() {
     return {{name}};
   }
-  public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
-    this.{{name}} = {{name}};
-  }
+//  public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
+//    this.{{name}} = {{name}};
+//  }
 
   {{/vars}}
 
