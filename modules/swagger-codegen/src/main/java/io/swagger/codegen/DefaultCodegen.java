@@ -1473,6 +1473,14 @@ public class DefaultCodegen {
                 LOGGER.warn("warning!  Property type \"" + type + "\" not found for parameter \"" + param.getName() + "\", using String");
                 property = new StringProperty().description("//TODO automatically added by swagger-codegen.  Type was " + type + " but not supported");
             }
+            if (property instanceof RefProperty) {
+                try {
+                    String ref = ((RefProperty)property).get$ref();
+                } catch (NullPointerException e) {
+                    LOGGER.warn("warning!  Property type \"" + type + "\" has a NULL genericRef found for parameter \"" + param.getName() + "\", using String");
+                    property = new StringProperty().description("//TODO automatically added by swagger-codegen.  Type was " + type + " but not supported");                                    
+                }
+            }
             property.setRequired(param.getRequired());
             CodegenProperty model = fromProperty(qp.getName(), property);
             p.dataType = model.datatype;
