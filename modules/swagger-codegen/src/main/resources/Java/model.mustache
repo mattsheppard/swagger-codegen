@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @ApiModel(description = "{{{description}}}")
 {{>generatedAnnotation}}
 @Builder
+{{#vars.length}}
 @NoArgsConstructor
 @AllArgsConstructor
+{{/vars.length}}
 @Accessors(chain = true)
 public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#serializableModel}}implements Serializable{{/serializableModel}} {
   {{#vars}}{{#isEnum}}
